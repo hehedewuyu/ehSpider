@@ -161,6 +161,6 @@ def crawlEhentaiImages(cookie):
             return -1
 
     for i in range(int(searchUrlNum)):
-        startCrawlImage(searchUrl[i], downloadPath, cookie)
+        startCrawlImage(searchUrl[i], downloadPath[i], cookie)
 
 
