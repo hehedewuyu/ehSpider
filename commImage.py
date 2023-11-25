@@ -1,9 +1,6 @@
 import threading
-
 import requests
-import os
 from _overlapped import NULL
-import logging,os,time
 
 g_headers = {
     'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
@@ -18,10 +15,17 @@ g_pageNum = [0]
 g_cookie2 = NULL
 g_bar = NULL
 
-def downloadImage(url, path, imgName, type):
+def downloadImage(url, path, imgName, cookie, type):
     for i in range(6):
         try:
-            response = requests.get(url, timeout=15, headers=g_headers)
+            response = requests.get(url, timeout=15, headers=g_headers,cookies=cookie)
+        except:
+
+            if i == 5:
+
+                g_reCheckDownload[str(imgName)] = url
+            continue
+        else:
             if 0 == type:
                 f = open(path + str(imgName) + ".jpg", 'wb')
             else:
@@ -29,13 +33,6 @@ def downloadImage(url, path, imgName, type):
             f.write(response.content)
             f.close()
             g_bar.update(1)
-        except:
-
-            if i == 5:
-                print(threading.current_thread().getName())
-                g_reCheckDownload[str(imgName)] = url
-            continue
-        else:
             break
 
 def initData():
@@ -50,9 +47,6 @@ def initData():
                 cookieInput = line[cookieIndex + 1:].strip()
                 global  g_cookie2
                 g_cookie2 = dict(map(lambda x: x.split('='), cookieInput.split(";")))
-
-
-   # cookies2 = dict(map(lambda x: x.split('='), cookies_input.split(";")))
 
 
 

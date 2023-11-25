@@ -20,12 +20,17 @@ def downloadEhentaiPicture(url, path, imgName, cookie):
         else:
             try:
                 it = re.search(jpgImgId, text).group()
-                downloadImage(it, path, imgName, 0)
+                downloadImage(it, path, imgName, cookie, 0)
                 break
             except:
-                it = re.search(gifImgId, text).group()
-                downloadImage(it, path, imgName, 1)
-                break
+                try:
+                    it = re.search(gifImgId, text).group()
+                    downloadImage(it, path, imgName, cookie, 1)
+                    break
+                except:
+                    commImage.g_reCheckDownload[str(imgName)] = url
+                    break
+
 
 
 
@@ -68,6 +73,8 @@ def getEhentaiDownloadPath(downloadPath):
     print(tmpDir)
     for cnt in range(3):
         try:
+            if True == os.path.exists(tmpDir):
+                os.rmdir(tmpDir)
             os.mkdir(tmpDir)
         except:
             if cnt == 3:
@@ -97,25 +104,34 @@ def startCrawlImage(url, dlPath, cookie):
         dex = commImage.g_pageNum[0] // 40
         if 0 != commImage.g_pageNum[0] % 40:
             dex += 1
-        commImage.g_bar = tqdm(total=commImage.g_pageNum[0], desc=dlPath, unit="page", ncols=100)
+        commImage.g_bar = tqdm(total=commImage.g_pageNum[0], desc="download", unit="page", ncols=100)
         i = 1
         while i < dex:
-            if -1 != url.find('?nw=session'):
-                newSearchUrl = url.replace('?nw=session', '') + '?p=' + str(i)
-                try:
-                    response = requests.get(newSearchUrl, timeout=20, headers=commImage.g_headers, cookies=cookie1)
-                    responseList.append(response.text)
-                except:
-                    return -1
-            else:
-                newSearchUrl = url + '?p=' + str(i)
-                try:
-                    response = requests.get(newSearchUrl, timeout=20, headers=commImage.g_headers, cookies=cookie)
-                    responseList.append(response.text)
-                except:
-                    print('url fail ' + str(i))
-                    return -1
-
+            for times in range(6):
+                if -1 != url.find('?nw=session'):
+                    newSearchUrl = url.replace('?nw=session', '') + '?p=' + str(i)
+                    try:
+                        response = requests.get(newSearchUrl, timeout=20, headers=commImage.g_headers, cookies=cookie1)
+                        responseList.append(response.text)
+                    except:
+                        if 5 == times:
+                            print('url fail ' + str(i))
+                            return -1
+                        continue
+                    else:
+                        break
+                else:
+                    newSearchUrl = url + '?p=' + str(i)
+                    try:
+                        response = requests.get(newSearchUrl, timeout=20, headers=commImage.g_headers, cookies=cookie)
+                        responseList.append(response.text)
+                    except:
+                        if 5 == times:
+                            print('url fail ' + str(i))
+                            return -1
+                        continue
+                    else:
+                        break
             i += 1
 
         dex = 0

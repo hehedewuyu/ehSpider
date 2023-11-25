@@ -20,7 +20,7 @@ def downloadHaminePicture(url, path, imgName):
             continue
         else:
             it = re.search(imgId, text).group()
-            downloadImage(it, path, imgName)
+            downloadImage(it, path, imgName,0)
             break
 
 

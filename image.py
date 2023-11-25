@@ -17,7 +17,6 @@ def crawlImage():
         while 1:
             cookie = {}
             if  'ex' == name:
-
                 if -1 == crawlEhentaiImages(commImage.g_cookie2):
                     break
             elif 'h' == name:
