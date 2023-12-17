@@ -1,16 +1,17 @@
 import requests
 import re
-import threading
 import time
 from tqdm import tqdm
 import os
 import commImage
 from commImage import downloadImage
-
+from bs4 import BeautifulSoup
+import concurrent.futures
 
 def downloadEhentaiPicture(url, path, imgName, cookie):
     jpgImgId = re.compile('(?<=<img id="img" src=").+?\.(jpg)', re.DOTALL)
     gifImgId = re.compile('(?<=<img id="img" src=").+?\.(gif)', re.DOTALL)
+    pngImgId = re.compile('(?<=<img id="img" src=").+?\.(png)', re.DOTALL)
     for times in range(6):
         try:
             response = requests.get(url, timeout=15, headers = commImage.g_headers,cookies=cookie)
@@ -35,26 +36,22 @@ def downloadEhentaiPicture(url, path, imgName, cookie):
 
 
 def getEhentaiPicture(text, path, dex, cookie):
-    threadList = []
+    futureResultList = []
     picture = re.compile('<div class="gdtm".+?</div>', re.DOTALL)
     allPictureText =re.findall(picture, text)
     pictureLink = re.compile('(?<=<a href=").+?(?=")', re.DOTALL)
     #目前支持jpg、png、jpeg、tif、webp、gif、bmp、eps、pcx、tga、svg、psd
 
-
-    cnt = dex * 40
-    for item in allPictureText:
-        tmpLink = re.search(pictureLink, item).group()
-        threadname = 'downloadThread' + str(cnt)
-        thread = threading.Thread(name=threadname, target=downloadEhentaiPicture, args=(tmpLink, path, cnt, cookie))
-        threadList.append(thread)
-        cnt += 1
-    for thread in threadList:
-        while True:
-            if threading.active_count() < 40:
-                break
-            time.sleep(1)
-        thread.start()
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=20)
+    try:
+        cnt = dex * 40
+        for item in allPictureText:
+            tmpLink = re.search(pictureLink, item).group()
+            futureResultList.append(executor.submit(downloadEhentaiPicture, tmpLink, path, cnt, cookie))
+            cnt += 1
+    finally:
+        # 在使用完毕后显式地关闭线程池
+        executor.shutdown()
 
 
 def findEhentaiTextPageNum(text, num):
@@ -80,7 +77,7 @@ def getEhentaiDownloadPath(downloadPath):
             if cnt == 3:
                 return -1
             tmpDir = commImage.g_imageRoot + input('地址\"' + tmpDir + '\"错误，请输入新目录:')
-            if 'quit' == tmpDir:
+            if commImage.g_imageRoot + 'quit' == tmpDir:
                 return -1
             continue
         else:
@@ -138,45 +135,35 @@ def startCrawlImage(url, dlPath, cookie):
         for responseText in responseList:
             getEhentaiPicture(responseText, dlPath, dex, cookie)
             dex += 1
-        while True:
-            cnt = threading.active_count()
-            if (2 == cnt):
-                commImage.g_bar.close()
-                if 0 != len(commImage.g_reCheckDownload):
-                    for item in commImage.g_reCheckDownload:
-                        print("error url " + commImage.g_reCheckDownload[item])
-                        print(str(item) + 'fail, page in ' + str((int(item) // 40) + 1))
-                    commImage.g_reCheckDownload.clear()
+            
+        commImage.g_bar.close()
+        if 0 != len(commImage.g_reCheckDownload):
+            for item in commImage.g_reCheckDownload:
+                print("error url " + commImage.g_reCheckDownload[item])
+                print(str(item) + 'fail, page in ' + str((int(item) // 40) + 1))
+            commImage.g_reCheckDownload.clear()
 
-                break
 
 def crawlEhentaiImages(cookie):
     searchUrl = []
     downloadPath = []
+    
+    '''response = requests.get(searchUrl[0], timeout=20, headers=commImage.g_headers, cookies=cookie)
+    soup = BeautifulSoup(response.text, 'lxml')
+    list = soup.find_all(class_ ="gdtm")
+    print(list)'''
 
-    searchUrl.append(input("请输入要下载的漫画（输入quit返回上一步）:"))#有些网址得加?nw=session
-
-    if 'quit' == searchUrl[0]:
-        return -1
-
-    if 'batch' == searchUrl[0]:
-        searchUrlNum = input("请输入要批量下载的漫画的数量（输入quit返回上一步）:")
-        if 'quit' == searchUrlNum:
-            return -1
-        searchUrl[0] = input("请输入要下载的漫画（输入quit返回上一步）:")  # 有些网址得加?nw=session
+    while True:
+        url = input("请输入要下载的漫画（输入quit退出）:")
+        if 'quit' == url:
+            exit()
+        if '' == url:
+            break
         if -1 == getEhentaiDownloadPath(downloadPath):
-            return -1
-    else:
-        searchUrlNum = 1
-        if -1 == getEhentaiDownloadPath(downloadPath):
-            return -1
+            continue
+        searchUrl.append(url)
 
-    for i in range(1, int(searchUrlNum)):
-        searchUrl.append(input("请输入要下载的漫画（输入quit返回上一步）:"))
-        if -1 == getEhentaiDownloadPath(downloadPath):
-            return -1
-
-    for i in range(int(searchUrlNum)):
+    for i in range(len(searchUrl)):
         startCrawlImage(searchUrl[i], downloadPath[i], cookie)
 
 
