@@ -5,13 +5,20 @@ from tqdm import tqdm
 import os
 import commImage
 from commImage import downloadImage
-from bs4 import BeautifulSoup
+from commImage import initData
 import concurrent.futures
 
+g_imageType = [".jpg", ".png",".jpeg",".tif",".gif",".bmp",".eps",".pcx",".tga",".svg",".psd"]
+
+def findPictureType(image):
+    for type in g_imageType:
+        if str(image).endswith(type):
+            return type
+
+    return ""
+
 def downloadEhentaiPicture(url, path, imgName, cookie):
-    jpgImgId = re.compile('(?<=<img id="img" src=").+?\.(jpg)', re.DOTALL)
-    gifImgId = re.compile('(?<=<img id="img" src=").+?\.(gif)', re.DOTALL)
-    pngImgId = re.compile('(?<=<img id="img" src=").+?\.(png)', re.DOTALL)
+    imgId = re.compile(r'(?<=<img id="img" src=").+?\.(jpg|png|jpeg|tif|webp|gif|bmp|eps|pcx|tga|svg|psd)', re.DOTALL)
     for times in range(6):
         try:
             response = requests.get(url, timeout=15, headers = commImage.g_headers,cookies=cookie)
@@ -20,17 +27,19 @@ def downloadEhentaiPicture(url, path, imgName, cookie):
             continue
         else:
             try:
-                it = re.search(jpgImgId, text).group()
-                downloadImage(it, path, imgName, cookie, 0)
-                break
-            except:
-                try:
-                    it = re.search(gifImgId, text).group()
-                    downloadImage(it, path, imgName, cookie, 1)
-                    break
-                except:
+                it = re.search(imgId, text).group()
+                imageType = findPictureType(it)
+                if "" == imageType:
                     commImage.g_reCheckDownload[str(imgName)] = url
                     break
+                if False == downloadImage(it, path, imgName, cookie, imageType):
+                    commImage.g_reCheckDownload[str(imgName)] = url
+                break
+            except:
+                if 5 == times:
+                    commImage.g_reCheckDownload[str(imgName)] = url
+                    break
+                continue
 
 
 
@@ -61,28 +70,30 @@ def findEhentaiTextPageNum(text, num):
     except:
         num[0] = 1
         return -1
+    
+#创建文件夹子函数
+def createPath(createDir):
+    try:
+        if True == os.path.exists(createDir):
+            os.rmdir(createDir)
+        os.mkdir(createDir)
+    except:
+        return -1
 
 def getEhentaiDownloadPath(downloadPath):
-    tmpDir = input('请输入创建的文件夹（输入quit返回上一步）:')
-    if 'quit' == tmpDir:
-        return -1
-    tmpDir = commImage.g_imageRoot + tmpDir
-    print(tmpDir)
     for cnt in range(3):
-        try:
-            if True == os.path.exists(tmpDir):
-                os.rmdir(tmpDir)
-            os.mkdir(tmpDir)
-        except:
-            if cnt == 3:
-                return -1
-            tmpDir = commImage.g_imageRoot + input('地址\"' + tmpDir + '\"错误，请输入新目录:')
-            if commImage.g_imageRoot + 'quit' == tmpDir:
-                return -1
+        tmpDir = input('第' + str(cnt+1) + '次输入，请输入创建的文件夹（输入quit返回上一步）:')
+        if 'quit' == tmpDir:
+            return -1
+        tmpDir = commImage.g_imageRoot + tmpDir
+        
+        if -1 == createPath(tmpDir):
+            print('地址\"' + tmpDir + '\"错误')
             continue
         else:
+            downloadPath.append(tmpDir + '\\')
             break
-    downloadPath.append(tmpDir + '\\')
+    
 
 def startCrawlImage(url, dlPath, cookie):
     responseList = []
@@ -147,17 +158,15 @@ def startCrawlImage(url, dlPath, cookie):
 def crawlEhentaiImages(cookie):
     searchUrl = []
     downloadPath = []
-    
-    '''response = requests.get(searchUrl[0], timeout=20, headers=commImage.g_headers, cookies=cookie)
-    soup = BeautifulSoup(response.text, 'lxml')
-    list = soup.find_all(class_ ="gdtm")
-    print(list)'''
+
 
     while True:
         url = input("请输入要下载的漫画（输入quit退出）:")
-        if 'quit' == url:
+        if 'init' == url:
+            initData()
+        elif 'quit' == url:
             exit()
-        if '' == url:
+        elif '' == url:
             break
         if -1 == getEhentaiDownloadPath(downloadPath):
             continue
