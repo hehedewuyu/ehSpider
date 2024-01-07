@@ -1,13 +1,13 @@
 from image import crawlImage
-#from menu import show_menu
+from menu import showMenu
 
 
 
 
 
 if __name__ == '__main__':
-    #show_menu()
-    crawlImage()
+    showMenu()
+    #crawlImage()
 
 
 
