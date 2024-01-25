@@ -1,5 +1,5 @@
 # ehSpider
-使用python爬取图片仅供学习，没有大面积爬取
+使用python爬取图片仅供学习，没有大面积爬取若做他用，出了事本作者概不负责
 
 首先修改initCfg.txt文件root为保存图片的根目录，cookie，type代表爬取的种类
 
